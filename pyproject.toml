@@ -1,5 +1,5 @@
 [project]
-name = "koltrast"
+name = "aftonfalk"
 version = "0.0.1"
 authors = [
   { name="Erik Bremstedt", email="erik.bremstedt@gmail.com" },
@@ -13,7 +13,8 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "pendulum==3.0.0"
+    "pendulum==3.0.0",
+    "pyodbc==5.1.0"
 ]
 
 [project.urls]
