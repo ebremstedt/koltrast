@@ -23,6 +23,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install build
           pip install pytest
+          pip install pendulum
 
       - name: Run tests
         run: |

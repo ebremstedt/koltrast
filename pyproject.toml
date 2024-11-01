@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = [
   { name="Erik Bremstedt", email="erik.bremstedt@gmail.com" },
 ]
-description = "Create runs for data pipelines"
+description = "Create intervals and helpers for data pipelines"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
@@ -17,5 +17,5 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/pypa/sampleproject"
-Issues = "https://github.com/pypa/sampleproject/issues"
+Homepage = "https://github.com/ebremstedt/koltrast"
+Issues = "https://github.com/ebremstedt/koltrast/issues"
