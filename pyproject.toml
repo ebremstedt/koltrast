@@ -1,6 +1,8 @@
 [project]
 name = "koltrast"
+
 version = "0.1.0"
+
 authors = [
   { name="Erik Bremstedt", email="erik.bremstedt@gmail.com" },
 ]
