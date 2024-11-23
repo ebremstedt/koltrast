@@ -1,6 +1,6 @@
 import unittest
 from pendulum import datetime
-from koltrast.interval import Interval, _split_interval, generate_intervals
+from koltrast.interval import Interval, _split_interval, make_intervals
 from koltrast.chunks import Chunk
 from pendulum.exceptions import ParserError
 
@@ -89,7 +89,7 @@ class TestSplitInterval(unittest.TestCase):
         until = datetime(2023, 7, 1)
         chunk = Chunk.YEAR
 
-        result = generate_intervals(since, until, chunk)
+        result = make_intervals(since, until, chunk)
 
         expected_intervals = [
             Interval(datetime(2023, 1, 1), datetime(2023, 7, 1))
@@ -101,7 +101,7 @@ class TestSplitInterval(unittest.TestCase):
         since = datetime(2023, 1, 1)
         until = datetime(2023, 2, 1)
         chunk = Chunk.MONTH
-        result = generate_intervals(since, until, chunk)
+        result = make_intervals(since, until, chunk)
 
         expected_interval = [Interval(datetime(2023, 1, 1), datetime(2023, 2, 1))]
 
@@ -112,7 +112,7 @@ class TestSplitInterval(unittest.TestCase):
         until = datetime(2023, 1, 31)
         chunk = Chunk.DAY
 
-        result = len(generate_intervals(since, until, chunk))
+        result = len(make_intervals(since, until, chunk))
 
         expected_len = 30
 
