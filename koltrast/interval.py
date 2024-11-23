@@ -69,7 +69,7 @@ def _split_interval(
     return sub_intervals
 
 
-def generate_intervals(since: str, until: str, chunk: str) -> List[Interval]:
+def make_intervals(since: str, until: str, chunk: str) -> List[Interval]:
     """ Create generate a list of intervals from an interval
     Parameters:
         since: The lower bound of an interval. Inclusive (>=)
@@ -86,7 +86,7 @@ def generate_intervals(since: str, until: str, chunk: str) -> List[Interval]:
     )
 
 
-def get_last_complete_interval(chunk: Chunk) -> Interval:
+def last_complete_interval(chunk: Chunk) -> Interval:
     """
     Returns the last complete interval of a specified type (Chunk.HOUR, Chunk.DAY, Chunk.MONTH).
 
