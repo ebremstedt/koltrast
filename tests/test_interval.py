@@ -15,13 +15,14 @@ class TestInterval(unittest.TestCase):
         since = pendulum.datetime(2024, 11, 20, 14, 0, tz="UTC")
 
         with self.assertRaises(ValueError):
-            Interval(since=since, until=since)
+            Interval(since=since, until=since, tz='UTC')
 
     def test_overlaps_with_true(self):
         """Test the 'overlaps_with' method when intervals overlap."""
         another_interval = Interval(
             since=pendulum.datetime(2024, 11, 20, 14, 0, tz="UTC"),
             until=pendulum.datetime(2024, 11, 20, 18, 0, tz="UTC"),
+            tz="UTC"
         )
         self.assertTrue(self.interval.overlaps_with(another_interval))
 
@@ -30,6 +31,7 @@ class TestInterval(unittest.TestCase):
         another_interval = Interval(
             since=pendulum.datetime(2024, 11, 20, 18, 0, tz="UTC"),
             until=pendulum.datetime(2024, 11, 20, 20, 0, tz="UTC"),
+            tz="UTC"
         )
         self.assertFalse(self.interval.overlaps_with(another_interval))
 
@@ -60,7 +62,7 @@ class TestInterval(unittest.TestCase):
 
         this_date = pendulum.datetime(2024, 11, 21, 0, 0, tz="UTC")
 
-        example_interval = Interval(since=this_date.subtract(hours=6), until=this_date)
+        example_interval = Interval(since=this_date.subtract(hours=6), until=this_date, tz="UTC")
         last_interval = last_complete_interval(cron_expression=cron_expression, anchor=this_date)
 
         self.assertEqual(example_interval, last_interval)

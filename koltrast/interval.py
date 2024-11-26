@@ -23,20 +23,18 @@ class Interval:
     until: DateTime
     tz: str = 'UTC'
 
-    def __init__(self, since: DateTime | str, until: DateTime | str, tz: str):
+    def __post_init__(self):
+        if isinstance(self.since, str):
+            self.since = parse(self.since)
 
-        if isinstance(since, str):
-            since=parse(since)
+        if isinstance(self.until, str):
+            self.until = parse(self.until)
 
-        if isinstance(until, str):
-            until=parse(until)
-
-        if since >= until:
+        if self.since >= self.until:
             raise ValueError("`since` must be before `until`")
 
-        self.since = since.in_timezone(tz=self.tz)
-        self.until = until.in_timezone(tz=self.tz)
-        self.tz=tz
+        self.since = self.since.in_timezone(self.tz)
+        self.until = self.until.in_timezone(self.tz)
 
     @property
     def duration(self) -> Duration:
