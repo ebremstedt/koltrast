@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from pendulum import DateTime, Duration, now
+from pendulum import DateTime, Duration, now, instance
 from croniter import croniter
 
 
@@ -10,6 +10,8 @@ class Interval:
     until: DateTime
 
     def __post_init__(self):
+        print(self.since, self.until)
+
         if self.since >= self.until:
             raise ValueError("`since` must be before `until`")
 
@@ -41,17 +43,21 @@ class Interval:
 
         intervals = []
         while True:
-            next_time = cron.get_next(DateTime)
-            if next_time >= self.until:
-                break
-            intervals.append(Interval(since=next_time - self.duration, until=next_time))
+            this_time: DateTime = instance(cron.get_current(DateTime))
+            next_time: DateTime = instance(cron.get_next(DateTime))
+
+            if next_time > self.until:
+                break  # Break the loop when the next time exceeds 'until'
+
+            intervals.append(Interval(since=this_time, until=next_time))
 
         return intervals
 
-    def last_complete_interval(self, cron_expression: str, anchor: DateTime = now()) -> Interval:
-        if not croniter.is_valid(expression=cron_expression):
-            raise Exception(f"{cron_expression} is not a valid cron expression")
 
-        cron = croniter(expr_format=cron_expression, start_time=anchor)
+def last_complete_interval(cron_expression: str, anchor: DateTime = now(), tz: str = 'UTC') -> Interval:
+    if not croniter.is_valid(expression=cron_expression):
+        raise Exception(f"{cron_expression} is not a valid cron expression")
 
-        return Interval(since=cron.get_prev(DateTime), until=cron.get_prev(DateTime))
+    cron = croniter(expr_format=cron_expression, start_time=anchor.in_timezone(tz))
+
+    return Interval(since=instance(cron.get_prev(DateTime)), until=instance(cron.get_next(DateTime)))
