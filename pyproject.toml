@@ -1,7 +1,7 @@
 [project]
 name = "koltrast"
 
-version = "2.0.1"
+version = "2.0.2"
 
 authors = [
   { name="Erik Bremstedt", email="erik.bremstedt@gmail.com" },
@@ -16,6 +16,7 @@ classifiers = [
 ]
 dependencies = [
     "pendulum==3.0.0"
+    "croniter==5.0.1"
 ]
 
 [project.urls]
