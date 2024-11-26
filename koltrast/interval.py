@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from pendulum import DateTime, Duration, now, instance
+from pendulum import DateTime, Duration, now, instance, parse
 from croniter import croniter
 
 
@@ -9,11 +9,19 @@ class Interval:
     since: DateTime
     until: DateTime
 
-    def __post_init__(self):
-        print(self.since, self.until)
+    def __init__(self, since: DateTime | str, until: DateTime | str):
 
-        if self.since >= self.until:
+        if isinstance(since, str):
+            since=parse(since)
+
+        if isinstance(until, str):
+            until=parse(until)
+
+        if since >= until:
             raise ValueError("`since` must be before `until`")
+
+        self.since = since
+        self.until = until
 
     @property
     def duration(self) -> Duration:
@@ -58,6 +66,20 @@ class Interval:
 
 
 def last_complete_interval(cron_expression: str, anchor: DateTime = now(), tz: str = 'UTC') -> Interval:
+    """
+    Calculate the last complete interval for a given cron expression.
+
+    Args:
+        cron_expression (str): A valid cron expression defining the desired schedule.
+        anchor (DateTime): The reference point for calculating intervals. Defaults to the current time.
+        tz (str): The timezone for interpreting the `anchor` and calculating the schedule. Defaults to 'UTC'.
+
+    Returns:
+        Interval: An object representing the last completed interval, with `since` and `until` attributes.
+
+    Raises:
+        Exception: If the provided `cron_expression` is invalid.
+    """
     if not croniter.is_valid(expression=cron_expression):
         raise Exception(f"{cron_expression} is not a valid cron expression")
 
