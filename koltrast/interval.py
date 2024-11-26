@@ -6,10 +6,24 @@ from croniter import croniter
 
 @dataclass
 class Interval:
+    """
+    Represents a time interval between two points in time (`since` and `until`), with an associated timezone.
+
+    Args:
+        since (DateTime | str): The start of the interval. Can be a `DateTime` object or str parsable by pendulum.parse
+        until (DateTime | str): The end of the interval. Can be a `DateTime` object or str parsable by pendulum.parse
+        tz (str): The timezone for the interval. Defaults to 'UTC'.
+
+    Raises:
+        ValueError: If `since` is not before `until`.
+
+    """
+
     since: DateTime
     until: DateTime
+    tz: str = 'UTC'
 
-    def __init__(self, since: DateTime | str, until: DateTime | str):
+    def __init__(self, since: DateTime | str, until: DateTime | str, tz: str):
 
         if isinstance(since, str):
             since=parse(since)
@@ -20,8 +34,9 @@ class Interval:
         if since >= until:
             raise ValueError("`since` must be before `until`")
 
-        self.since = since
-        self.until = until
+        self.since = since.in_timezone(tz=self.tz)
+        self.until = until.in_timezone(tz=self.tz)
+        self.tz=tz
 
     @property
     def duration(self) -> Duration:
@@ -60,7 +75,7 @@ class Interval:
             if next_time > self.until:
                 break  # Break the loop when the next time exceeds 'until'
 
-            intervals.append(Interval(since=this_time, until=next_time))
+            intervals.append(Interval(since=this_time, until=next_time, tz=self.tz))
 
         return intervals
 
@@ -84,5 +99,12 @@ def last_complete_interval(cron_expression: str, anchor: DateTime = now(), tz: s
         raise Exception(f"{cron_expression} is not a valid cron expression")
 
     cron = croniter(expr_format=cron_expression, start_time=anchor.in_timezone(tz))
+    since = instance(cron.get_prev(DateTime))
+    until = instance(cron.get_next(DateTime))
 
-    return Interval(since=instance(cron.get_prev(DateTime)), until=instance(cron.get_next(DateTime)))
+    if anchor < until:
+        one_step_back = instance(cron.get_prev(DateTime))
+        two_step_back = instance(cron.get_prev(DateTime))
+        return Interval(since=two_step_back, until=one_step_back, tz=tz)
+
+    return Interval(since=since, until=until, tz=tz)
