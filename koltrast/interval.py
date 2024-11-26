@@ -39,6 +39,9 @@ class Interval:
         Returns:
             list[Interval]: A list of smaller intervals.
         """
+        if not croniter.is_valid(expression=cron_expression):
+            raise Exception(f"{cron_expression} is not a valid cron expression")
+
         cron = croniter(cron_expression, self.since)
 
         intervals = []
