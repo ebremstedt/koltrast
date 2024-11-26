@@ -1,5 +1,6 @@
-from koltrast.interval import Interval
+from koltrast.interval import Interval, last_complete_interval
 
 __all__ = [
-    "Interval"
+    "Interval",
+    "last_complete_interval"
 ]
