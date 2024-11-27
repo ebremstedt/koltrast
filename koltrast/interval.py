@@ -1,110 +1,108 @@
-
-""" Interval """
+from __future__ import annotations
 from dataclasses import dataclass
-from pendulum import DateTime
-from typing import List
-from pendulum import parse, now
-from koltrast.chunks import Chunk, parse_chunk, add_chunk, is_half_chunk
+from pendulum import DateTime, Duration, now, instance, parse
+from croniter import croniter
 
 
 @dataclass
 class Interval:
-    """Interval
+    """
+    Represents a time interval between two points in time (`since` and `until`), with an associated timezone.
 
-    since: interval since when? (inclusive: =>)
-    until: interval until when? (not inclusive: <)
+    Args:
+        since (DateTime | str): The start of the interval. Can be a `DateTime` object or str parsable by pendulum.parse
+        until (DateTime | str): The end of the interval. Can be a `DateTime` object or str parsable by pendulum.parse
+        tz (str): The timezone for the interval. Defaults to 'UTC'.
+
+    Raises:
+        ValueError: If `since` is not before `until`.
+
     """
 
     since: DateTime
     until: DateTime
+    tz: str = 'UTC'
 
-    def __init__(self, since: DateTime | str, until: DateTime | str):
+    def __post_init__(self):
+        if isinstance(self.since, str):
+            self.since = parse(self.since)
 
-        if isinstance(since, str):
-            since=parse(since)
+        if isinstance(self.until, str):
+            self.until = parse(self.until)
 
-        if isinstance(until, str):
-            until=parse(until)
+        if self.since >= self.until:
+            raise ValueError("`since` must be before `until`")
 
-        if since >= until:
-            raise ValueError("Since must be < until")
+        self.since = self.since.in_timezone(self.tz)
+        self.until = self.until.in_timezone(self.tz)
 
-        self.since = since
-        self.until = until
+    @property
+    def duration(self) -> Duration:
+        """Return the duration of the interval."""
+        return self.until - self.since
+
+    def overlaps_with(self, other_interval: Interval) -> bool:
+        """Check if two intervals overlap."""
+        return not (self.until <= other_interval.since or self.since >= other_interval.until)
+
+    def contains(self, moment: DateTime) -> bool:
+        """Check if a given moment falls within the interval."""
+        return self.since <= moment < self.until
+
+    def split(self, cron_expression: str) -> list[Interval]:
+        """
+        Split the current interval into smaller intervals based on a cron expression.
+        The cron expression defines the times when the interval should be split.
+
+        Args:
+            cron_expression (str): A cron-style expression for the split pattern (e.g., "0 */6 * * *").
+
+        Returns:
+            list[Interval]: A list of smaller intervals.
+        """
+        if not croniter.is_valid(expression=cron_expression):
+            raise Exception(f"{cron_expression} is not a valid cron expression")
+
+        cron = croniter(cron_expression, self.since)
+
+        intervals = []
+        while True:
+            this_time: DateTime = instance(cron.get_current(DateTime))
+            next_time: DateTime = instance(cron.get_next(DateTime))
+
+            if next_time > self.until:
+                break  # Break the loop when the next time exceeds 'until'
+
+            intervals.append(Interval(since=this_time, until=next_time, tz=self.tz))
+
+        return intervals
 
 
-def _split_interval(
-    interval: Interval,
-    chunk: Chunk
-) -> List[Interval]:
-    """ Split an interval into smaller intervals
+def last_complete_interval(cron_expression: str, anchor: DateTime = now(), tz: str = 'UTC') -> Interval:
+    """
+    Calculate the last complete interval for a given cron expression.
 
-    Parameters:
-        interval: an unfixed amount of time
-        chunk: a fixed amount of time
+    Args:
+        cron_expression (str): A valid cron expression defining the desired schedule.
+        anchor (DateTime): The reference point for calculating intervals. Defaults to the current time.
+        tz (str): The timezone for interpreting the `anchor` and calculating the schedule. Defaults to 'UTC'.
 
     Returns:
-        List of intervals
+        Interval: An object representing the last completed interval, with `since` and `until` attributes.
+
+    Raises:
+        Exception: If the provided `cron_expression` is invalid.
     """
+    if not croniter.is_valid(expression=cron_expression):
+        raise Exception(f"{cron_expression} is not a valid cron expression")
 
-    sub_intervals = []
+    cron = croniter(expr_format=cron_expression, start_time=anchor.in_timezone(tz))
+    since = instance(cron.get_prev(DateTime))
+    until = instance(cron.get_next(DateTime))
 
-    start_here = interval.since
-    end_here = interval.until
+    if anchor < until:
+        one_step_back = instance(cron.get_prev(DateTime))
+        two_step_back = instance(cron.get_prev(DateTime))
+        return Interval(since=two_step_back, until=one_step_back, tz=tz)
 
-    while start_here < end_here:
-
-        sub_interval_start = start_here
-        sub_interval_end = add_chunk(_datetime=start_here, chunk=chunk)
-
-        if is_half_chunk(start=start_here, end=interval.until, chunk=chunk):
-            sub_interval_end = interval.until
-
-        sub_intervals.append(
-            Interval(since=sub_interval_start, until=sub_interval_end)
-        )
-
-        start_here = sub_interval_end
-
-    return sub_intervals
-
-
-def make_intervals(since: str, until: str, chunk: str) -> List[Interval]:
-    """ Create generate a list of intervals from an interval
-    Parameters:
-        since: The lower bound of an interval. Inclusive (>=)
-        until: The upper bound of an interval. Not inclusive (<)
-        chunk: How big or small should the intervals be.
-            Accepted: HOUR, DAY, WEEK, MONTH, YEAR, FULL
-
-    Returns: List of intervals
-    """
-
-    return _split_interval(
-        interval=Interval(since=since, until=until),
-        chunk=parse_chunk(string=chunk)
-    )
-
-
-def last_complete_interval(chunk: Chunk) -> Interval:
-    """
-    Returns the last complete interval of a specified type (Chunk.HOUR, Chunk.DAY, Chunk.MONTH).
-
-    :param interval_type: Type of interval (IntervalType.HOUR, IntervalType.DAY, or IntervalType.MONTH)
-    :return: Interval object representing the period from the beginning of the last complete interval
-             until its end.
-    """
-    right_now = now()
-
-    if chunk == Chunk.HOUR:
-        latest_complete_interval_start = right_now.subtract(hours=1).start_of("hour")
-    elif chunk == Chunk.DAY:
-        latest_complete_interval_start = right_now.subtract(days=1).start_of("day")
-    elif chunk == Chunk.MONTH:
-        latest_complete_interval_start = right_now.subtract(months=1).start_of("month")
-    else:
-        raise ValueError("Invalid chunk. Use Chunk.HOUR, Chunk.DAY, or Chunk.MONTH.")
-
-    latest_complete_interval_end = latest_complete_interval_start.end_of(chunk.value)
-
-    return Interval(since=latest_complete_interval_start, until=latest_complete_interval_end)
+    return Interval(since=since, until=until, tz=tz)

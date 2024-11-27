@@ -1,122 +1,77 @@
 import unittest
-from pendulum import datetime
-from koltrast.interval import Interval, _split_interval, make_intervals
-from koltrast.chunks import Chunk
-from pendulum.exceptions import ParserError
+import pendulum
+from koltrast.interval import Interval, last_complete_interval  # Replace with the actual import if the class is in another file.
 
 class TestInterval(unittest.TestCase):
-    def test_since_is_earlier_than_until(self):
-        since = datetime(2023, 1, 1)
-        until = datetime(2023, 1, 2)
-        interval = Interval(since, until)
-        self.assertEqual(interval.since, since)
-        self.assertEqual(interval.until, until)
 
-        since = datetime(2023, 1, 2)
-        until = datetime(2023, 1, 1)
+    def setUp(self):
+        """Set up basic data for testing."""
+        # Set a common start and end time for the interval.
+        self.interval = Interval(since=pendulum.datetime(2024, 11, 20, 10, 0, tz="UTC"), until=pendulum.datetime(2024, 11, 20, 16, 0, tz="UTC"))
+
+
+    def test_invalid_interval_creation(self):
+        """Test that an exception is raised if 'since' is after 'until'."""
+        since = pendulum.datetime(2024, 11, 20, 14, 0, tz="UTC")
+
         with self.assertRaises(ValueError):
-            Interval(since, until)
+            Interval(since=since, until=since, tz='UTC')
 
-    def test_since_is_earlier_than_until_with_strings(self):
-        since = "2023-01-01"
-        until = "2023-01-02"
-        interval = Interval(since, until)
-        self.assertEqual(interval.since, datetime(2023, 1, 1, tz='UTC'))
-        self.assertEqual(interval.until, datetime(2023, 1, 2, tz='UTC'))
+    def test_overlaps_with_true(self):
+        """Test the 'overlaps_with' method when intervals overlap."""
+        another_interval = Interval(
+            since=pendulum.datetime(2024, 11, 20, 14, 0, tz="UTC"),
+            until=pendulum.datetime(2024, 11, 20, 18, 0, tz="UTC"),
+            tz="UTC"
+        )
+        self.assertTrue(self.interval.overlaps_with(another_interval))
 
-        since = "2023-01-02"
-        until = "2023-01-01"
-        with self.assertRaises(ValueError):
-            Interval(since, until)
+    def test_overlaps_with_false(self):
+        """Test the 'overlaps_with' method when intervals do not overlap."""
+        another_interval = Interval(
+            since=pendulum.datetime(2024, 11, 20, 18, 0, tz="UTC"),
+            until=pendulum.datetime(2024, 11, 20, 20, 0, tz="UTC"),
+            tz="UTC"
+        )
+        self.assertFalse(self.interval.overlaps_with(another_interval))
 
-    def test_since_equals_until(self):
-        since = "2023-01-01"
-        until = "2023-01-01"
-        with self.assertRaises(ValueError):
-            Interval(since, until)
+    def test_contains_true(self):
+        """Test the 'contains' method when a point is inside the interval."""
+        moment = pendulum.datetime(2024, 11, 20, 12, 0, tz="UTC")
+        self.assertTrue(self.interval.contains(moment))
 
-    def test_invalid_since_string(self):
-        since = "invalid-date"
-        until = "2023-01-01"
-        with self.assertRaises(ParserError):
-            Interval(since, until)
+    def test_contains_false(self):
+        """Test the 'contains' method when a point is outside the interval."""
+        moment = pendulum.datetime(2024, 11, 20, 9, 0, tz="UTC")
+        self.assertFalse(self.interval.contains(moment))
 
-    def test_invalid_until_string(self):
-        since = "2023-01-01"
-        until = "invalid-date"
-        with self.assertRaises(ParserError):
-            Interval(since, until)
+    def test_split_cron_expression_multiple_chunks(self):
+        """Test splitting a larger interval using a cron expression."""
+        long_start = pendulum.datetime(2024, 11, 20, 0, 0, tz="UTC")
+        long_end = pendulum.datetime(2024, 11, 21, 0, 0, tz="UTC")
+        long_interval = Interval(since=long_start, until=long_end)
 
-    def test_invalid_both_strings(self):
-        since = "invalid-date"
-        until = "another-invalid-date"
-        with self.assertRaises(ParserError):
-            Interval(since, until)
+        cron_expression = "0 */6 * * *"  # Every 6 hours
+        split_intervals = long_interval.split(cron_expression)
 
-    def test_valid_datetime_objects(self):
-        since = datetime(2023, 1, 1)
-        until = datetime(2023, 1, 2)
-        interval = Interval(since, until)
-        self.assertEqual(interval.since, since)
-        self.assertEqual(interval.until, until)
+        self.assertEqual(split_intervals[3].until, long_end)
 
-    def test_valid_date_strings(self):
-        since = "2023-01-01"
-        until = "2023-01-02"
-        interval = Interval(since, until)
-        self.assertEqual(interval.since, datetime(2023, 1, 1, tz='UTC'))
-        self.assertEqual(interval.until, datetime(2023, 1, 2, tz='UTC'))
+    def test_last_complete_interval(self):
+        """Test the 'last_complete_interval' method to return the last full interval."""
+        cron_expression = "0 */6 * * *"  # Every 6 hours
 
+        this_date = pendulum.datetime(2024, 11, 21, 0, 0, tz="UTC")
 
-class TestSplitInterval(unittest.TestCase):
-    def test_split_one_and_half_weeks(self):
-        since = datetime(2023, 1, 1)
-        until = datetime(2023, 1, 11)
-        chunk = Chunk.WEEK
-        interval = Interval(since=since, until=until)
-        result = _split_interval(interval, chunk)
+        example_interval = Interval(since=this_date.subtract(hours=6), until=this_date, tz="UTC")
+        last_interval = last_complete_interval(cron_expression=cron_expression, anchor=this_date)
 
-        expected_intervals= [
-            Interval(datetime(2023, 1, 1),datetime(2023, 1, 8)),
-            Interval(datetime(2023, 1, 8),datetime(2023, 1, 11))
-            ]
+        self.assertEqual(example_interval, last_interval)
 
-        self.assertEqual(result, expected_intervals)
+    def test_invalid_cron_expression_in_last_complete_interval(self):
+        """Test that an exception is raised if the cron expression is invalid in 'last_complete_interval'."""
+        with self.assertRaises(Exception):
+            last_complete_interval(cron_expression="invalid cron expression")
 
 
-    def test_split_half_year(self):
-        since = datetime(2023, 1, 1)
-        until = datetime(2023, 7, 1)
-        chunk = Chunk.YEAR
-
-        result = make_intervals(since, until, chunk)
-
-        expected_intervals = [
-            Interval(datetime(2023, 1, 1), datetime(2023, 7, 1))
-        ]
-
-        self.assertEqual(result, expected_intervals)
-
-    def test_split_one_month(self):
-        since = datetime(2023, 1, 1)
-        until = datetime(2023, 2, 1)
-        chunk = Chunk.MONTH
-        result = make_intervals(since, until, chunk)
-
-        expected_interval = [Interval(datetime(2023, 1, 1), datetime(2023, 2, 1))]
-
-        self.assertEqual(result, expected_interval)
-
-    def test_inclusive(self):
-        since = datetime(2023, 1, 1)
-        until = datetime(2023, 1, 31)
-        chunk = Chunk.DAY
-
-        result = len(make_intervals(since, until, chunk))
-
-        expected_len = 30
-
-        self.assertEqual(result, expected_len)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
