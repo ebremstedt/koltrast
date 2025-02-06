@@ -106,3 +106,7 @@ def last_complete_interval(cron_expression: str, anchor: DateTime = now(), tz: s
         return Interval(since=two_step_back, until=one_step_back, tz=tz)
 
     return Interval(since=since, until=until, tz=tz)
+
+
+def x_days_ago_until_anchor_interval(days: int, anchor: DateTime = now(), tz: str = 'UTC') -> Interval:
+   return Interval(since=anchor.subtract(days=days), until=anchor, tz=tz)
